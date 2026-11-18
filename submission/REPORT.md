@@ -56,7 +56,23 @@ Lý do: 6 ảnh thiếu file nhãn mà không có người gán. Máy không b�
 5. **EMPTY_LABEL**: 6 ảnh vẫn có file nhãn rỗng ở v3. Máy không phân biệt được "ảnh nền" với "quên gán".
 
 ## 5. Train: raw vs clean (tùy chọn, chấm riêng)
-**Chưa chạy.** Bài này tập trung hoàn thành phần lõi (4 module, calibration, pipeline, báo cáo) trước. Phần train trên Colab (yolo26n, 2 seed × 20 epoch) sẽ làm sau nếu còn thời gian. Hiện chưa có số liệu nên không đưa ra kết luận "clean tốt hơn raw".
+Train trên Colab (T4), `yolo26n.pt`, 20 epoch, imgsz 640, batch 16, seed 0 và 1. Cùng tập val `gold_val` (40 ảnh) và cùng tập test (100 ảnh, nhãn người); chỉ khác dữ liệu train. Bảng từ `submission/results/comparison.md`:
+
+| biến thể | #ảnh train | số seed | mAP50 | mAP50-95 | precision | recall |
+|---|---|---|---|---|---|---|
+| raw | 224 | 2 | 0,726 ± 0,000 | 0,512 ± 0,004 | 0,764 ± 0,061 | 0,649 ± 0,028 |
+| clean | 202 | 2 | 0,715 ± 0,019 | 0,492 ± 0,014 | 0,795 ± 0,018 | 0,606 ± 0,004 |
+
+**Chênh mAP50 (clean − raw) = −0,011**, nhỏ hơn độ lệch giữa 2 seed của clean (±0,019). Nhìn từng seed: seed 0 thì clean **cao hơn** raw (0,729 so với 0,726), seed 1 thì clean **thấp hơn** (0,701 so với 0,726). Hai seed cho hai chiều ngược nhau.
+
+**Kết luận: chưa kết luận được** clean tốt hơn hay kém hơn raw. Chênh lệch nằm trong nhiễu. Ngoài ra, chỉ có 2 seed thì độ lệch chuẩn tính ra cũng không đáng tin (raw "±0,000" chỉ là do 2 seed tình cờ gần nhau: 0,7256 và 0,7259).
+
+**Giả thuyết giải thích và cách kiểm:**
+1. **Điểm của `raw` có thể bị thổi phồng do rò rỉ test.** Pipeline phát hiện 5 ảnh `LEAK_TEST` (img_0049, img_0101, …) trùng với ảnh trong `data/test`. `raw` được train trên chính các ảnh này, còn `clean` thì đã loại. *Cách kiểm:* đánh giá lại cả hai model trên test **bỏ 5 ảnh bị rò rỉ** (còn 95 ảnh). Nếu khoảng cách thu hẹp hoặc đảo chiều thì rò rỉ là một phần nguyên nhân.
+2. **`raw` không bẩn như ta tưởng khi vào train.** Ultralytics tự bỏ các dòng nhãn hỏng (id −1/4/7/93, `nan`, thiếu cột) và kẹp box tràn. Vì vậy phần lớn lỗi cú pháp mà pipeline sửa thì Ultralytics cũng "sửa" ngầm. Ngoài ra, 12 ảnh trùng mà `clean` loại không mang thêm thông tin mới. Khác biệt thực chất chỉ còn ở khoảng 80 ảnh người duyệt sửa nhãn ngữ nghĩa. *Cách kiểm:* đếm cảnh báo của Ultralytics ở bước 6 trên Colab, và thử biến thể `oracle` (nhãn người, chặn trên) để xem dư địa thật.
+3. **Test quá nhỏ cho các lớp hiếm.** AP50 của truck giảm (raw TB 0,648, clean TB 0,589), còn bus tăng (0,695 lên 0,713). Nhưng test chỉ có 24 box truck và 27 box bus, train có khoảng 30 box mỗi lớp, nên vài box đúng hay sai cũng đủ làm AP dao động mạnh. Lớp person (285 box test) gần như không đổi (0,822 so với 0,828). *Cách kiểm:* tăng số seed lên ≥ 5 và xem khoảng tin cậy của AP theo lớp.
+
+**Việc tiếp theo:** chạy thêm seed (≥ 5); đánh giá lại trên test bỏ 5 ảnh rò rỉ; thêm biến thể `oracle`; duyệt nốt 16 ảnh còn cảnh báo và 22 ảnh ngoài ngân sách trong hàng đợi.
 
 ## 6. Quyết định và ghi chú AI
 **(a) Quyết định:** **Release** `clean_v1` (202 ảnh), kèm hai điều kiện ghi rõ:
