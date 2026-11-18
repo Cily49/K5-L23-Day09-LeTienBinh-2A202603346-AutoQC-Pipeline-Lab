@@ -11,6 +11,11 @@ calibrate:       ## chạy 2 sweep và ghi submission/calibration/calibration_re
 run:             ## MỘT LỆNH chạy cả pipeline. Kết luận 0/10/20 (Release/Hold/Rework) = make thành công (kết luận in ở cuối); mã khác = lỗi thật
 	$(PY) -m pipeline.run; rc=$$?; case $$rc in 0|10|20) exit 0;; *) echo "pipeline lỗi hoặc tạm dừng (mã $$rc)"; exit $$rc;; esac
 
+bonus:           ## check thưởng: box có tỉ lệ khung bất thường theo lớp (trên lô raw và trên dataset sau pipeline; chạy sau `make run`)
+	$(PY) -m pytest -q tests/test_aspect_ratio.py
+	$(PY) -m pipeline.checks.aspect_ratio --data data/raw --out submission/reports/bonus_aspect_ratio_raw.csv
+	$(PY) -m pipeline.checks.aspect_ratio --data work/run/ds --out submission/reports/bonus_aspect_ratio.csv
+
 train:           ## train raw vs clean (cần GPU; nên chạy trên Colab)
 	$(PY) scripts/train_compare.py --variants raw clean --seeds 0 1 --epochs 20
 	$(PY) scripts/summarize_results.py
