@@ -1,0 +1,2 @@
+check,severity,code,image,line,message,extra
+aspect_ratio,warn,BOX_ASPECT_OUTLIER,img_0212,3,"box car cao hẹp bất thường: rộng/cao = 0.29 (điển hình 1.30, z = -3.6)","{""class"": ""car"", ""aspect"": 0.286, ""typical"": 1.299, ""z"": -3.57}"
